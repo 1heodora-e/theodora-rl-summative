@@ -11,7 +11,6 @@
     #canvas-wrap { position: fixed; inset: 0; z-index: 0; }
     canvas { display: block; width: 100%; height: 100%; }
 
-    /* Left HUD */
     #hud-left {
       position: fixed; top: 14px; left: 14px; z-index: 10;
       width: 300px; max-height: calc(100vh - 28px); overflow-y: auto;
@@ -52,7 +51,6 @@
     #btn-step { background: #2563eb; color: #fff; }
     #btn-reset { background: #b91c1c; color: #fff; }
 
-    /* Top center pill */
     #top-pill {
       position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 10;
       background: rgba(15, 23, 42, 0.92); border: 1px solid rgba(148, 163, 184, 0.35);
@@ -62,7 +60,6 @@
     }
     #top-pill span.sep { color: #64748b; margin: 0 10px; }
 
-    /* Bottom right reward */
     #reward-panel {
       position: fixed; bottom: 18px; right: 18px; z-index: 10;
       background: rgba(18, 28, 42, 0.9); border: 1px solid rgba(100, 140, 180, 0.35);
@@ -100,7 +97,7 @@
     </div>
     <div class="legend-mini">
       Flag: red &lt;20% · amber 20–60% · green &gt;60% stock<br />
-      Building height ∝ vulnerability · Kigali districts labeled on map
+      Schools: white walls (#FFFFFF), red roofs (#E63946) · City grid + Lake Muhazi-inspired water
     </div>
   </aside>
 
@@ -120,11 +117,19 @@
 
   <script>
 (function () {
-  var MAP = 40;
+  /* Norm [0,1] → world roughly [-400, +400] on X/Z */
+  var MAP = 800;
   var DEPOT_NX = 0.5, DEPOT_NZ = 0.5;
+  var TERRAIN_SIZE = 1400;
+  var TERRAIN_SEG = 96;
+  var GRID_STEP = 100;
+  /* 40% of previous count (~60% reduction); heights medium–tall only */
+  var CITY_BUILDINGS = 128;
+  var BUILD_COLORS = [0xc1440e, 0xf5e6c8, 0x8ba7b5, 0xd4a843];
 
   function terrainHeight(x, z) {
-    return Math.sin(x * 0.065) * 1.35 + Math.cos(z * 0.058) * 1.05 + Math.sin(x * 0.11 + z * 0.09) * 0.55;
+    var s = 0.0028;
+    return Math.sin(x * s) * 10 + Math.cos(z * s * 1.05) * 8 + Math.sin(x * s * 1.9 + z * s * 1.4) * 4;
   }
 
   function worldFromNorm(nx, nz) {
@@ -170,11 +175,11 @@
 
   var container = document.getElementById("canvas-wrap");
   var scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x6eb8e8);
-  scene.fog = new THREE.Fog(0x87b8e0, 55, 120);
+  scene.background = new THREE.Color(0x4a6fa8);
+  scene.fog = new THREE.Fog(0x6b8cae, 350, 1400);
 
-  var camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 500);
-  camera.position.set(28, 38, 42);
+  var camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 1, 4000);
+  camera.position.set(120, 200, 300);
 
   var renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
@@ -185,91 +190,228 @@
 
   var controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
-  controls.dampingFactor = 0.06;
-  controls.maxPolarAngle = Math.PI * 0.48;
-  controls.minDistance = 18;
-  controls.maxDistance = 95;
-  controls.target.set(0, 1, 0);
+  controls.dampingFactor = 0.05;
+  controls.maxPolarAngle = Math.PI * 0.495;
+  controls.minDistance = 120;
+  controls.maxDistance = 2200;
+  controls.target.set(0, 5, 0);
 
-  var hemi = new THREE.HemisphereLight(0xb8d4f0, 0x3d5c3a, 0.55);
+  var hemi = new THREE.HemisphereLight(0x8ab4d4, 0x3d5c2e, 0.38);
   scene.add(hemi);
-  var sun = new THREE.DirectionalLight(0xfff4e0, 0.95);
-  sun.position.set(45, 55, 28);
+  var ambient = new THREE.AmbientLight(0x4a5568, 0.26);
+  scene.add(ambient);
+  /* Warm sunset-style key light from the right */
+  var sun = new THREE.DirectionalLight(0xffcc88, 0.55);
+  sun.position.set(950, 520, 280);
   sun.castShadow = true;
-  sun.shadow.mapSize.width = 2048;
-  sun.shadow.mapSize.height = 2048;
-  sun.shadow.camera.near = 0.5;
-  sun.shadow.camera.far = 160;
-  sun.shadow.camera.left = -50;
-  sun.shadow.camera.right = 50;
-  sun.shadow.camera.top = 50;
-  sun.shadow.camera.bottom = -50;
+  sun.shadow.mapSize.width = 4096;
+  sun.shadow.mapSize.height = 4096;
+  sun.shadow.camera.near = 10;
+  sun.shadow.camera.far = 2500;
+  var sh = 650;
+  sun.shadow.camera.left = -sh;
+  sun.shadow.camera.right = sh;
+  sun.shadow.camera.top = sh;
+  sun.shadow.camera.bottom = -sh;
   scene.add(sun);
+  var sunsetFill = new THREE.DirectionalLight(0xffa64d, 0.38);
+  sunsetFill.position.set(820, 380, -120);
+  scene.add(sunsetFill);
 
-  /* Rolling hills terrain */
-  var tg = new THREE.PlaneGeometry(110, 110, 96, 96);
+  /* Rolling hills — wide terrain + vertex tint (green + brown patches) */
+  var tg = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_SEG, TERRAIN_SEG);
   tg.rotateX(-Math.PI / 2);
   var tp = tg.attributes.position;
+  var colArr = [];
+  var colGreen = new THREE.Color(0x2d5a1b);
+  var colBrown = new THREE.Color(0x5c4a32);
   for (var i = 0; i < tp.count; i++) {
     var vx = tp.getX(i);
     var vz = tp.getZ(i);
     tp.setY(i, terrainHeight(vx, vz));
+    var patch = Math.sin(vx * 0.012) * Math.cos(vz * 0.01) + Math.sin(vx * 0.028 + vz * 0.024) * 0.45;
+    var vc = colGreen.clone();
+    if (patch > 0.35 || Math.sin(vx * 0.019 + vz * 0.017) > 0.82) {
+      vc.lerp(colBrown, 0.42 + Math.random() * 0.12);
+    }
+    colArr.push(vc.r, vc.g, vc.b);
   }
+  tg.setAttribute("color", new THREE.Float32BufferAttribute(colArr, 3));
   tg.computeVertexNormals();
   var groundMat = new THREE.MeshStandardMaterial({
-    color: 0x2d6b3e,
-    roughness: 0.92,
-    metalness: 0.05,
+    color: 0xffffff,
+    vertexColors: true,
+    roughness: 0.93,
+    metalness: 0.03,
     flatShading: false
   });
   var ground = new THREE.Mesh(tg, groundMat);
   ground.receiveShadow = true;
   scene.add(ground);
 
-  /* Clouds */
+  /* Lake Muhazi–inspired water — diagonal sheet */
+  var lakeGroup = new THREE.Group();
+  var lakeGeo = new THREE.PlaneGeometry(520, 140);
+  var lakeMat = new THREE.MeshStandardMaterial({
+    color: 0x1b6ca8,
+    roughness: 0.18,
+    metalness: 0.12,
+    transparent: true,
+    opacity: 0.9,
+    emissive: 0x0d4a7a
+  });
+  var lake = new THREE.Mesh(lakeGeo, lakeMat);
+  lake.rotation.x = -Math.PI / 2;
+  lake.rotation.z = Math.PI * 0.22;
+  var lx = 180, lz = -120;
+  lake.position.set(lx, terrainHeight(lx, lz) + 0.35, lz);
+  lake.receiveShadow = true;
+  lakeGroup.add(lake);
+  scene.add(lakeGroup);
+
+  /* City street grid — Kigali red dirt roads + warm glow */
+  var urbanGroup = new THREE.Group();
+  scene.add(urbanGroup);
+  var halfMap = MAP * 0.52;
+  var roadDirt = 0x8b3a0f;
+  var roadMat = new THREE.MeshStandardMaterial({
+    color: roadDirt,
+    roughness: 0.9,
+    metalness: 0.04,
+    emissive: 0x5c2808,
+    emissiveIntensity: 0.08
+  });
+  var roadGlowMat = new THREE.MeshBasicMaterial({
+    color: 0xd4783a,
+    transparent: true,
+    opacity: 0.28,
+    depthWrite: false
+  });
+  var lineH = 0.35;
+  var lineW = 1.8;
+  var extent = halfMap + 40;
+  for (var gx = -extent; gx <= extent; gx += GRID_STEP) {
+    var len = extent * 2 + 80;
+    var strip = new THREE.Mesh(new THREE.BoxGeometry(lineW, lineH, len), roadMat);
+    strip.position.set(gx, terrainHeight(gx, 0) + lineH * 0.5, 0);
+    strip.receiveShadow = true;
+    urbanGroup.add(strip);
+    var glow = new THREE.Mesh(new THREE.BoxGeometry(lineW + 2.5, 0.08, len + 4), roadGlowMat);
+    glow.position.set(gx, terrainHeight(gx, 0) + 0.12, 0);
+    urbanGroup.add(glow);
+  }
+  for (var gz = -extent; gz <= extent; gz += GRID_STEP) {
+    var len2 = extent * 2 + 80;
+    var strip2 = new THREE.Mesh(new THREE.BoxGeometry(len2, lineH, lineW), roadMat);
+    strip2.position.set(0, terrainHeight(0, gz) + lineH * 0.5, gz);
+    strip2.receiveShadow = true;
+    urbanGroup.add(strip2);
+    var glow2 = new THREE.Mesh(new THREE.BoxGeometry(len2 + 4, 0.08, lineW + 2.5), roadGlowMat);
+    glow2.position.set(0, terrainHeight(0, gz) + 0.12, gz);
+    urbanGroup.add(glow2);
+  }
+
+  /* Street lights at grid intersections */
+  function addStreetLight(px, pz) {
+    var y0 = terrainHeight(px, pz) + lineH;
+    var pole = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.35, 0.45, 14, 8),
+      new THREE.MeshStandardMaterial({ color: 0x3d4450, roughness: 0.85 })
+    );
+    pole.position.set(px, y0 + 7, pz);
+    pole.castShadow = true;
+    urbanGroup.add(pole);
+    var bulb = new THREE.Mesh(
+      new THREE.SphereGeometry(1.1, 10, 10),
+      new THREE.MeshStandardMaterial({
+        color: 0xffe4b8,
+        emissive: 0xffb020,
+        emissiveIntensity: 1.15,
+        roughness: 0.35
+      })
+    );
+    bulb.position.set(px, y0 + 14.2, pz);
+    urbanGroup.add(bulb);
+  }
+  var lightStep = GRID_STEP * 3;
+  for (var lx2 = -extent; lx2 <= extent; lx2 += lightStep) {
+    for (var lz2 = -extent; lz2 <= extent; lz2 += lightStep) {
+      if (Math.abs(lx2) < 55 && Math.abs(lz2) < 55) continue;
+      addStreetLight(lx2, lz2);
+    }
+  }
+
+  /* City blocks — medium & tall only (no short buildings), varied African-city palette */
+  function rand(a, b) { return a + Math.random() * (b - a); }
+  for (var b = 0; b < CITY_BUILDINGS; b++) {
+    var bx = rand(-halfMap * 0.92, halfMap * 0.92);
+    var bz = rand(-halfMap * 0.92, halfMap * 0.92);
+    if (Math.abs(bx) < 70 && Math.abs(bz) < 70) continue;
+    var bw = rand(10, 22);
+    var bd = rand(10, 22);
+    var bh = rand(14, 25);
+    var by = terrainHeight(bx, bz);
+    var bcol = BUILD_COLORS[Math.floor(Math.random() * BUILD_COLORS.length)];
+    var box = new THREE.Mesh(
+      new THREE.BoxGeometry(bw, bh, bd),
+      new THREE.MeshStandardMaterial({ color: bcol, roughness: 0.86, metalness: 0.05 })
+    );
+    box.position.set(bx, by + bh * 0.5, bz);
+    box.castShadow = true;
+    box.receiveShadow = true;
+    urbanGroup.add(box);
+  }
+
+  /* Clouds — 50% smaller puffs, high sky (y 180–220) so city stays clear */
   function addCloud(px, py, pz, s) {
     var g = new THREE.Group();
+    var half = 0.5;
     for (var c = 0; c < 5; c++) {
-      var sg = new THREE.SphereGeometry(s * (0.35 + Math.random() * 0.35), 10, 10);
-      var sm = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, opacity: 0.92 });
+      var sg = new THREE.SphereGeometry(s * half * (0.35 + Math.random() * 0.35), 10, 10);
+      var sm = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, opacity: 0.9 });
       var m = new THREE.Mesh(sg, sm);
-      m.position.set((Math.random() - 0.5) * s * 1.8, (Math.random() - 0.5) * s * 0.4, (Math.random() - 0.5) * s * 1.2);
+      m.position.set((Math.random() - 0.5) * s * half * 1.8, (Math.random() - 0.5) * s * half * 0.4, (Math.random() - 0.5) * s * half * 1.2);
       g.add(m);
     }
     g.position.set(px, py, pz);
     scene.add(g);
   }
-  addCloud(-32, 42, -25, 5);
-  addCloud(28, 44, 18, 6);
-  addCloud(-8, 46, 35, 4.5);
-  addCloud(38, 40, -30, 5.5);
+  addCloud(-420, 195, -280, 28);
+  addCloud(380, 205, 200, 32);
+  addCloud(-120, 218, 360, 24);
+  addCloud(450, 188, -320, 30);
 
-  /* Depot warehouse */
+  /* Central depot — large blue warehouse */
   var depotPos = worldFromNorm(DEPOT_NX, DEPOT_NZ);
   var depotGroup = new THREE.Group();
   var depotBase = new THREE.Mesh(
-    new THREE.BoxGeometry(7, 3.2, 6),
-    new THREE.MeshStandardMaterial({ color: 0x5c6b7a, roughness: 0.78, metalness: 0.15 })
+    new THREE.BoxGeometry(42, 18, 36),
+    new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.55, metalness: 0.25 })
   );
-  depotBase.position.y = 1.6 + depotPos.y;
+  depotBase.position.y = 9 + depotPos.y;
   depotBase.castShadow = true;
   depotBase.receiveShadow = true;
   depotGroup.add(depotBase);
-  var dockLight = new THREE.Mesh(
-    new THREE.BoxGeometry(1.8, 0.35, 0.4),
-    new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xf59e0b, emissiveIntensity: 0.4 })
+  var depotTrim = new THREE.Mesh(
+    new THREE.BoxGeometry(44, 2.2, 38),
+    new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.65 })
   );
-  dockLight.position.set(3.6, 0.9 + depotPos.y, 0);
+  depotTrim.position.y = 18.5 + depotPos.y;
+  depotGroup.add(depotTrim);
+  var dockLight = new THREE.Mesh(
+    new THREE.BoxGeometry(8, 1.2, 2.5),
+    new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xf59e0b, emissiveIntensity: 0.5 })
+  );
+  dockLight.position.set(22, 6 + depotPos.y, 0);
   depotGroup.add(dockLight);
   depotGroup.position.set(depotPos.x, 0, depotPos.z);
   scene.add(depotGroup);
-  var depotLabel = makeTextSprite("Swift Haven Depot", { fontsize: 26, scale: 5.2 });
-  depotLabel.position.set(depotPos.x, depotPos.y + 5.5, depotPos.z);
+  var depotLabel = makeTextSprite("Swift Haven Depot", { fontsize: 32, scale: 28 });
+  depotLabel.position.set(depotPos.x, depotPos.y + 32, depotPos.z);
   scene.add(depotLabel);
 
   var dockPulse = 0;
 
-  /* Dirt roads: depot to each school — built after first state */
   var roadGroup = new THREE.Group();
   scene.add(roadGroup);
 
@@ -279,46 +421,50 @@
     var len = dir.length();
     if (len < 0.01) return;
     dir.normalize();
-    var geo = new THREE.BoxGeometry(len, 0.12, 1.15);
-    var mat = new THREE.MeshStandardMaterial({ color: 0xc45c2a, roughness: 0.95, metalness: 0 });
+    var w = 14;
+    var geo = new THREE.BoxGeometry(len, 0.45, w);
+    var mat = new THREE.MeshStandardMaterial({ color: 0x8b3a0f, roughness: 0.9, metalness: 0, emissive: 0x4a2006, emissiveIntensity: 0.06 });
     var mesh = new THREE.Mesh(geo, mat);
     mesh.position.copy(mid);
-    mesh.position.y = (from.y + to.y) * 0.5 + 0.06;
+    mesh.position.y = (from.y + to.y) * 0.5 + 0.2;
     mesh.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
     mesh.receiveShadow = true;
     roadGroup.add(mesh);
   }
 
-  /* Trees */
   var treeGroup = new THREE.Group();
   scene.add(treeGroup);
   function addTree(wx, wz) {
     var y0 = terrainHeight(wx, wz);
     var trunk = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.15, 0.22, 1.8, 8),
+      new THREE.CylinderGeometry(1.2, 1.6, 12, 8),
       new THREE.MeshStandardMaterial({ color: 0x5c4030, roughness: 0.9 })
     );
-    trunk.position.set(wx, y0 + 0.9, wz);
+    trunk.position.set(wx, y0 + 6, wz);
     trunk.castShadow = true;
     treeGroup.add(trunk);
     var crown = new THREE.Mesh(
-      new THREE.SphereGeometry(1.1 + Math.random() * 0.5, 10, 10),
+      new THREE.SphereGeometry(7 + Math.random() * 4, 10, 10),
       new THREE.MeshStandardMaterial({ color: 0x1e6b32, roughness: 0.88 })
     );
-    crown.position.set(wx + (Math.random() - 0.3) * 0.4, y0 + 2.4, wz + (Math.random() - 0.3) * 0.4);
+    crown.position.set(wx + (Math.random() - 0.3) * 3, y0 + 16, wz + (Math.random() - 0.3) * 3);
     crown.scale.set(1, 1.25, 1);
     crown.castShadow = true;
     treeGroup.add(crown);
   }
-  for (var t = 0; t < 55; t++) {
-    var tx = (Math.random() - 0.5) * MAP * 0.92;
-    var tz = (Math.random() - 0.5) * MAP * 0.92;
-    if (Math.abs(tx) < 6 && Math.abs(tz) < 6) continue;
+  for (var t = 0; t < 180; t++) {
+    var tx = (Math.random() - 0.5) * MAP * 0.95;
+    var tz = (Math.random() - 0.5) * MAP * 0.95;
+    if (Math.abs(tx) < 90 && Math.abs(tz) < 90) continue;
     addTree(tx, tz);
   }
 
-  /* Vehicle: NGO pickup */
+  /* Vehicle — large + orange running light */
   var vehicleGroup = new THREE.Group();
+  vehicleGroup.scale.set(8.4, 8.4, 8.4);
+  var vehicleBeacon = new THREE.PointLight(0xff6600, 2.2, 180, 1.8);
+  vehicleBeacon.position.set(0, 2.2, 0);
+  vehicleGroup.add(vehicleBeacon);
   var bodyMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.45, metalness: 0.12 });
   var stripeMat = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.55 });
   var body = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.75, 1.05), bodyMat);
@@ -333,23 +479,29 @@
   stripe.position.set(0.1, 0.5, 0);
   vehicleGroup.add(stripe);
   vehicleGroup.position.copy(depotPos);
-  vehicleGroup.position.y += 0.35;
+  vehicleGroup.position.y += 2;
   scene.add(vehicleGroup);
 
   var vehicleTarget = depotPos.clone();
-  vehicleTarget.y += 0.35;
+  vehicleTarget.y += 2;
 
-  /* Trail */
-  var trailPts = [];
-  var trailMax = 400;
+  var trailMax = 800;
   var trailGeo = new THREE.BufferGeometry();
   var trailPos = new Float32Array(trailMax * 3);
   trailGeo.setAttribute("position", new THREE.BufferAttribute(trailPos, 3));
   trailGeo.setDrawRange(0, 0);
-  var trailMat = new THREE.PointsMaterial({ color: 0xea580c, size: 0.22, transparent: true, opacity: 0.75, sizeAttenuation: true });
+  var trailMat = new THREE.PointsMaterial({ color: 0xff6600, size: 5, transparent: true, opacity: 0.55, sizeAttenuation: true });
   var trailPoints = new THREE.Points(trailGeo, trailMat);
   scene.add(trailPoints);
   var trailCount = 0;
+  var trailLineGeo = new THREE.BufferGeometry();
+  var trailLinePos = new Float32Array(trailMax * 3);
+  trailLineGeo.setAttribute("position", new THREE.BufferAttribute(trailLinePos, 3));
+  var trailLineMat = new THREE.LineBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.92 });
+  var trailLine = new THREE.Line(trailLineGeo, trailLineMat);
+  scene.add(trailLine);
+  var trailLineCount = 0;
+  var trailLastSample = new THREE.Vector3();
 
   function pushTrail(p) {
     if (trailCount < trailMax) {
@@ -370,12 +522,43 @@
     }
     trailGeo.attributes.position.needsUpdate = true;
     trailGeo.setDrawRange(0, trailCount);
+    if (trailLineCount < trailMax) {
+      trailLinePos[trailLineCount * 3] = p.x;
+      trailLinePos[trailLineCount * 3 + 1] = p.y;
+      trailLinePos[trailLineCount * 3 + 2] = p.z;
+      trailLineCount++;
+    } else {
+      for (var k = 0; k < trailMax - 1; k++) {
+        trailLinePos[k * 3] = trailLinePos[(k + 1) * 3];
+        trailLinePos[k * 3 + 1] = trailLinePos[(k + 1) * 3 + 1];
+        trailLinePos[k * 3 + 2] = trailLinePos[(k + 1) * 3 + 2];
+      }
+      var jj = (trailMax - 1) * 3;
+      trailLinePos[jj] = p.x;
+      trailLinePos[jj + 1] = p.y;
+      trailLinePos[jj + 2] = p.z;
+    }
+    trailLineGeo.attributes.position.needsUpdate = true;
+    trailLineGeo.setDrawRange(0, trailLineCount);
+    trailLastSample.copy(p);
   }
 
   function resetTrail() {
     trailCount = 0;
     trailGeo.setDrawRange(0, 0);
+    trailLineCount = 0;
+    trailLineGeo.setDrawRange(0, 0);
+    trailLastSample.set(999999, 999999, 999999);
   }
+
+  var targetRing = new THREE.Mesh(
+    new THREE.RingGeometry(7, 14, 56),
+    new THREE.MeshBasicMaterial({ color: 0xff7700, transparent: true, opacity: 0.62, side: THREE.DoubleSide, depthWrite: false })
+  );
+  targetRing.rotation.x = -Math.PI / 2;
+  targetRing.visible = false;
+  scene.add(targetRing);
+  var targetRingPhase = 0;
 
   var schoolMeshes = {};
   var schoolLabels = {};
@@ -383,9 +566,16 @@
   var roadsBuilt = false;
 
   var BASE_SCHOOL_H = 3.3;
+  var SCHOOL_LABEL_OFFSET = 15;
 
   function schoolHeight(vuln) {
-    return 1.1 + vuln * 2.2;
+    return (1.1 + vuln * 2.2) * 1.3;
+  }
+
+  function stockLightHex(ratio) {
+    if (ratio < 0.2) return 0xdc2626;
+    if (ratio < 0.6) return 0xf59e0b;
+    return 0x16a34a;
   }
 
   function buildSchool(state) {
@@ -394,7 +584,7 @@
       var wp = worldFromNorm(sch.x, sch.y);
       var h = schoolHeight(sch.vulnerability);
       var g = new THREE.Group();
-      var wallMat = new THREE.MeshStandardMaterial({ color: 0xf5f0e6, roughness: 0.82 });
+      var wallMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.65 });
       var walls = new THREE.Mesh(new THREE.BoxGeometry(2.2, BASE_SCHOOL_H, 2.0), wallMat);
       walls.scale.y = h / BASE_SCHOOL_H;
       walls.position.y = h * 0.5 + wp.y;
@@ -402,12 +592,17 @@
       walls.receiveShadow = true;
       g.add(walls);
       var roof = new THREE.Mesh(
-        new THREE.BoxGeometry(2.35, 0.25, 2.15),
-        new THREE.MeshStandardMaterial({ color: 0x8a8a80, roughness: 0.75 })
+        new THREE.BoxGeometry(2.45, 0.35, 2.25),
+        new THREE.MeshStandardMaterial({ color: 0xe63946, roughness: 0.45, metalness: 0.12 })
       );
-      roof.position.y = h + 0.12 + wp.y;
+      roof.position.y = h + 0.2 + wp.y;
       roof.castShadow = true;
       g.add(roof);
+      var slHex = stockLightHex(sch.stock_ratio);
+      var stockLight = new THREE.PointLight(slHex, 1.8, 120, 2);
+      stockLight.position.set(0, h + 8, 0);
+      g.add(stockLight);
+      g.userData.stockLight = stockLight;
       var pole = new THREE.Mesh(
         new THREE.CylinderGeometry(0.06, 0.06, 0.9, 8),
         new THREE.MeshStandardMaterial({ color: 0x44403a })
@@ -426,12 +621,11 @@
       g.userData.walls = walls;
       g.userData.roof = roof;
       g.userData.pole = pole;
-      g.userData.baseWpY = wp.y;
       g.position.set(wp.x, 0, wp.z);
       scene.add(g);
       schoolMeshes[sch.id] = g;
-      var sp = makeTextSprite(sch.name, { fontsize: 22, scale: 3.8 });
-      sp.position.set(wp.x, h + wp.y + 2.4, wp.z);
+      var sp = makeTextSprite(sch.name, { fontsize: 24, scale: 22 });
+      sp.position.set(wp.x, h + wp.y + SCHOOL_LABEL_OFFSET, wp.z);
       scene.add(sp);
       schoolLabels[sch.id] = sp;
     });
@@ -447,6 +641,8 @@
     });
   }
 
+  var DISTRICT_LABEL_Y = 80;
+
   function districtLabels(state) {
     if (districtSprites.length) return;
     var groups = { Gasabo: [], Nyarugenge: [], Kicukiro: [] };
@@ -461,8 +657,8 @@
       sx /= arr.length;
       sz /= arr.length;
       var w = worldFromNorm(sx, sz);
-      var sp = makeTextSprite(name + " District", { fontsize: 30, scale: 6 });
-      sp.position.set(w.x, w.y + 8, w.z);
+      var sp = makeTextSprite(name + " District", { fontsize: 36, scale: 38 });
+      sp.position.set(w.x, w.y + DISTRICT_LABEL_Y, w.z);
       scene.add(sp);
       districtSprites.push(sp);
     });
@@ -483,7 +679,7 @@
         wall.position.y = h * 0.5 + wp.y;
       }
       var roof = g.userData.roof;
-      if (roof) roof.position.y = h + 0.12 + wp.y;
+      if (roof) roof.position.y = h + 0.2 + wp.y;
       var pole = g.userData.pole;
       if (pole) pole.position.set(0.7, h + 0.45 + wp.y, 0.6);
       var flag = g.userData.flag;
@@ -491,35 +687,62 @@
         flag.material.color.setHex(flagColor(sch.stock_ratio));
         flag.position.set(1.05, h + 0.65 + wp.y, 0.6);
       }
+      var sl = g.userData.stockLight;
+      if (sl) {
+        sl.color.setHex(stockLightHex(sch.stock_ratio));
+        sl.position.set(0, h + 8, 0);
+      }
       g.position.set(wp.x, 0, wp.z);
-      g.userData.baseWpY = wp.y;
       var sp = schoolLabels[sch.id];
-      if (sp) sp.position.set(wp.x, h + wp.y + 2.4, wp.z);
+      if (sp) sp.position.set(wp.x, h + wp.y + SCHOOL_LABEL_OFFSET, wp.z);
     });
   }
 
   var lastEp = -1;
   var lastStep = -1;
-  var prevVehicleNorm = { x: DEPOT_NX, y: DEPOT_NZ };
 
   function applyState(state) {
+    var seedTrailThisFrame = false;
     if (state.episode !== lastEp) {
       resetTrail();
       lastEp = state.episode;
+      seedTrailThisFrame = true;
+      lastStep = state.step;
     }
     updateSchools(state);
 
     var v = state.vehicle;
     if (v) {
       vehicleTarget.copy(worldFromNorm(v.x, v.y));
-      vehicleTarget.y += 0.35;
+      vehicleTarget.y += 2;
+      if (seedTrailThisFrame) {
+        var seedP = worldFromNorm(v.x, v.y);
+        seedP.y += 2;
+        pushTrail(seedP);
+      }
       if (state.step !== lastStep && state.last_action != null) {
         pushTrail(vehicleGroup.position.clone());
         lastStep = state.step;
       }
       var dn = Math.hypot(v.x - DEPOT_NX, v.y - DEPOT_NZ);
-      if (dn > 0.08) dockPulse = 1;
-      prevVehicleNorm = { x: v.x, y: v.y };
+      if (dn > 0.02) dockPulse = 1;
+      if (typeof v.target_school_id === "number" && schoolMeshes[v.target_school_id]) {
+        var tgtSch = null;
+        state.schools.forEach(function (s) {
+          if (s.id === v.target_school_id) tgtSch = s;
+        });
+        if (tgtSch) {
+          var tw = worldFromNorm(tgtSch.x, tgtSch.y);
+          targetRing.position.set(tw.x, tw.y + 0.45, tw.z);
+          targetRing.visible = true;
+        } else {
+          targetRing.visible = false;
+        }
+      } else {
+        targetRing.visible = false;
+      }
+    } else {
+      targetRing.visible = false;
     }
 
     var covered = 0;
@@ -593,9 +816,18 @@
 
   function animate() {
     requestAnimationFrame(animate);
-    vehicleGroup.position.lerp(vehicleTarget, 0.12);
+    vehicleGroup.position.lerp(vehicleTarget, 0.015);
+    if (trailLineCount > 0 && vehicleGroup.position.distanceTo(trailLastSample) > 12) {
+      pushTrail(vehicleGroup.position.clone());
+    }
     var lookT = vehicleGroup.position.clone();
-    controls.target.lerp(lookT, 0.04);
+    controls.target.lerp(lookT, 0.015);
+    if (targetRing.visible) {
+      targetRingPhase += 0.05;
+      var pulse = 0.88 + 0.14 * Math.sin(targetRingPhase);
+      targetRing.scale.set(pulse, pulse, 1);
+      targetRing.material.opacity = 0.42 + 0.22 * Math.sin(targetRingPhase + 0.7);
+    }
     dockPulse *= 0.92;
     if (dockLight && dockLight.material) {
       var inten = 0.35 + dockPulse * 0.9;
