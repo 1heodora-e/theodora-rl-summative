@@ -44,8 +44,7 @@ theodora-rl-summative/
 │   ├── dqn/                  # Saved DQN models
 │   └── pg/                   # Saved policy gradient models
 ├── visualization/
-│   ├── index.html            # Three.js 3D frontend
-│   └── main.js               # Three.js scene logic
+│   └── index.html            # Three.js 3D frontend (inline script)
 ├── main.py                   # Entry point — loads best model, runs with viz
 ├── requirements.txt          # All dependencies
 └── README.md

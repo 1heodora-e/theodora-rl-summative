@@ -40,6 +40,7 @@ class VisualizationBridge:
         self.vehicle = VehicleState(x=0.5, y=0.5, target_school_id=None, moving=False)
         self.current_episode = 1
         self._model: Any = None
+        self.last_step_reward: float = 0.0
 
     def set_model(self, model: Any) -> None:
         """Attach a stable-baselines3 model (e.g. DQN) for policy actions."""
@@ -83,6 +84,7 @@ class VisualizationBridge:
                 "moving": self.vehicle.moving,
             },
             "schools": schools,
+            "last_step_reward": float(self.last_step_reward),
         }
 
     def get_state(self) -> dict[str, Any]:
@@ -97,6 +99,7 @@ class VisualizationBridge:
             self.last_action = None
             self.vehicle = VehicleState(x=0.5, y=0.5, target_school_id=None, moving=False)
             self.current_episode += 1
+            self.last_step_reward = 0.0
             return self.state_payload()
 
     def _predict_action(self) -> int:
@@ -118,6 +121,7 @@ class VisualizationBridge:
             if not self.env.action_space.contains(action):
                 raise ValueError(f"Invalid action from model: {action}")
             self.obs, reward, terminated, truncated, _ = self.env.step(action)
+            self.last_step_reward = float(reward)
             self.total_reward += float(reward)
             self.done = bool(terminated or truncated)
             self.last_action = int(action)
