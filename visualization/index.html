@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kigali Pad Distribution 3D Visualization</title>
+    <style>
+      html, body { margin: 0; padding: 0; overflow: hidden; background: #0d1117; color: #e6edf3; font-family: Arial, sans-serif; }
+      #hud {
+        position: fixed; top: 12px; left: 12px; z-index: 20;
+        background: rgba(15, 23, 42, 0.85); border: 1px solid #334155; border-radius: 10px; padding: 12px; width: 320px;
+      }
+      #hud h3 { margin: 0 0 8px 0; font-size: 16px; }
+      #stats { font-size: 13px; line-height: 1.5; }
+      #controls { margin-top: 8px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+      button, input[type="range"] { width: 100%; }
+      button {
+        background: #1f6feb; color: white; border: none; border-radius: 6px;
+        padding: 8px; cursor: pointer;
+      }
+      button:hover { background: #388bfd; }
+      #legend {
+        margin-top: 8px; font-size: 12px; border-top: 1px solid #334155; padding-top: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="hud">
+      <h3>Kigali RL Dashboard</h3>
+      <div id="stats">Connecting...</div>
+      <div id="controls">
+        <button id="stepBtn">Step once (API)</button>
+        <button id="resetBtn">Reset</button>
+      </div>
+      <div id="legend">
+        <div>Stock colors: <span style="color:#ef4444">Critical</span> / <span style="color:#f59e0b">Low</span> / <span style="color:#22c55e">Adequate</span></div>
+        <div>School size scales with vulnerability score.</div>
+      </div>
+    </div>
+
+    <script type="module" src="/static/main.js"></script>
+  </body>
+</html>
+

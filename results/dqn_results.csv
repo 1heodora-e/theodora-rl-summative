@@ -1,0 +1,11 @@
+algo,run_idx,learning_rate,gamma,buffer_size,batch_size,exploration_fraction,mean_reward,train_seconds,model_path,reward_path,seed,ent_coef,entropy_path,clip_range,n_steps,n_epochs,vf_coef
+DQN,0,0.0001,0.95,50000.0,64.0,0.2,133.85714297294618,58.35696244239807,/kaggle/working/outputs/models/dqn_run_00.zip,/kaggle/working/outputs/results/dqn_rewards_run_00.csv,10000,,,,,,
+DQN,1,0.0003,0.95,50000.0,128.0,0.2,165.77802097797394,59.04436492919922,/kaggle/working/outputs/models/dqn_run_01.zip,/kaggle/working/outputs/results/dqn_rewards_run_01.csv,10001,,,,,,
+DQN,2,0.001,0.95,100000.0,64.0,0.2,171.8461534500122,58.467880964279175,/kaggle/working/outputs/models/dqn_run_02.zip,/kaggle/working/outputs/results/dqn_rewards_run_02.csv,10002,,,,,,
+DQN,3,0.0003,0.99,50000.0,64.0,0.2,170.52087993621825,58.419912815093994,/kaggle/working/outputs/models/dqn_run_03.zip,/kaggle/working/outputs/results/dqn_rewards_run_03.csv,10003,,,,,,
+DQN,4,0.0001,0.99,100000.0,128.0,0.1,139.80439586639403,59.9382483959198,/kaggle/working/outputs/models/dqn_run_04.zip,/kaggle/working/outputs/results/dqn_rewards_run_04.csv,10004,,,,,,
+DQN,5,0.0005,0.98,100000.0,256.0,0.2,171.88791131973267,59.55474376678467,/kaggle/working/outputs/models/dqn_run_05.zip,/kaggle/working/outputs/results/dqn_rewards_run_05.csv,10005,,,,,,
+DQN,6,0.0003,0.97,200000.0,128.0,0.15,171.31648378372194,59.67975926399231,/kaggle/working/outputs/models/dqn_run_06.zip,/kaggle/working/outputs/results/dqn_rewards_run_06.csv,10006,,,,,,
+DQN,7,0.001,0.99,200000.0,256.0,0.1,169.2571427822113,60.661481618881226,/kaggle/working/outputs/models/dqn_run_07.zip,/kaggle/working/outputs/results/dqn_rewards_run_07.csv,10007,,,,,,
+DQN,8,0.0002,0.96,100000.0,64.0,0.25,171.04395427703858,58.305224657058716,/kaggle/working/outputs/models/dqn_run_08.zip,/kaggle/working/outputs/results/dqn_rewards_run_08.csv,10008,,,,,,
+DQN,9,0.0004,0.98,50000.0,128.0,0.3,172.0835174560547,57.63001489639282,/kaggle/working/outputs/models/dqn_run_09.zip,/kaggle/working/outputs/results/dqn_rewards_run_09.csv,10009,,,,,,

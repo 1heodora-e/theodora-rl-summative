@@ -1,0 +1,5 @@
+algo,run_idx,learning_rate,gamma,buffer_size,batch_size,exploration_fraction,mean_reward,train_seconds,model_path,reward_path,seed,ent_coef,entropy_path,clip_range,n_steps,n_epochs,vf_coef
+DQN,9,0.0004,0.98,50000.0,128.0,0.3,172.0835174560547,57.63001489639282,/kaggle/working/outputs/models/dqn_run_09.zip,/kaggle/working/outputs/results/dqn_rewards_run_09.csv,10009,,,,,,
+PPO,8,0.0003,,,,,164.7120864391327,119.60467433929443,/kaggle/working/outputs/models/ppo_run_08.zip,/kaggle/working/outputs/results/ppo_rewards_run_08.csv,10108,0.02,,0.2,512.0,15.0,
+A2C,8,0.0001,0.97,,,,68.60329570770264,80.49195432662964,/kaggle/working/outputs/models/a2c_run_08.zip,/kaggle/working/outputs/results/a2c_rewards_run_08.csv,10208,0.01,,,20.0,,0.7
+REINFORCE,9,0.0005,0.99,,,,-17.846153846153843,47.94947338104248,/kaggle/working/outputs/models/reinforce_run_09.pt,/kaggle/working/outputs/results/reinforce_rewards_run_09.csv,10309,0.02,/kaggle/working/outputs/results/reinforce_entropy_run_09.csv,,,,

@@ -1,0 +1,11 @@
+algo,run_idx,learning_rate,gamma,buffer_size,batch_size,exploration_fraction,mean_reward,train_seconds,model_path,reward_path,seed,ent_coef,entropy_path,clip_range,n_steps,n_epochs,vf_coef
+PPO,0,0.0003,,,,,63.62857146263123,104.66179418563843,/kaggle/working/outputs/models/ppo_run_00.zip,/kaggle/working/outputs/results/ppo_rewards_run_00.csv,10100,0.0,,0.2,256.0,10.0,
+PPO,1,0.0001,,,,,-35.8,104.7353675365448,/kaggle/working/outputs/models/ppo_run_01.zip,/kaggle/working/outputs/results/ppo_rewards_run_01.csv,10101,0.01,,0.2,256.0,10.0,
+PPO,2,0.0003,,,,,62.84395608901978,104.24613881111145,/kaggle/working/outputs/models/ppo_run_02.zip,/kaggle/working/outputs/results/ppo_rewards_run_02.csv,10102,0.0,,0.1,512.0,10.0,
+PPO,3,0.0005,,,,,-41.414283108711246,103.4606363773346,/kaggle/working/outputs/models/ppo_run_03.zip,/kaggle/working/outputs/results/ppo_rewards_run_03.csv,10103,0.01,,0.2,512.0,10.0,
+PPO,4,0.0003,,,,,-29.65384786128998,88.1514139175415,/kaggle/working/outputs/models/ppo_run_04.zip,/kaggle/working/outputs/results/ppo_rewards_run_04.csv,10104,0.0,,0.3,256.0,5.0,
+PPO,5,0.0002,,,,,58.9000006198883,103.05405187606812,/kaggle/working/outputs/models/ppo_run_05.zip,/kaggle/working/outputs/results/ppo_rewards_run_05.csv,10105,0.0,,0.2,1024.0,10.0,
+PPO,6,0.0001,,,,,71.89999955892563,103.56600737571716,/kaggle/working/outputs/models/ppo_run_06.zip,/kaggle/working/outputs/results/ppo_rewards_run_06.csv,10106,0.01,,0.1,1024.0,10.0,
+PPO,7,0.0007,,,,,124.98901073932647,103.00590133666992,/kaggle/working/outputs/models/ppo_run_07.zip,/kaggle/working/outputs/results/ppo_rewards_run_07.csv,10107,0.02,,0.2,256.0,10.0,
+PPO,8,0.0003,,,,,164.7120864391327,119.60467433929443,/kaggle/working/outputs/models/ppo_run_08.zip,/kaggle/working/outputs/results/ppo_rewards_run_08.csv,10108,0.02,,0.2,512.0,15.0,
+PPO,9,0.0002,,,,,120.75824046134949,119.86300563812256,/kaggle/working/outputs/models/ppo_run_09.zip,/kaggle/working/outputs/results/ppo_rewards_run_09.csv,10109,0.0,,0.3,512.0,15.0,
