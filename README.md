@@ -8,6 +8,7 @@
 
 **Train a distribution agent to allocate limited sanitary pads across twelve Kigali-area schools—balancing need, vulnerability, distance, and depot stock.**
 
+[![Video Demo](https://img.shields.io/badge/Video-Demo-red?logo=youtube)](https://www.youtube.com/watch?v=PLACEHOLDER) · 
 <p align="center">
   <img src="docs/images/viz-dashboard.png" alt="Swift Haven 3D distribution dashboard — Kigali districts, depot, schools, live HUD and rewards" width="920"/>
   <br />
@@ -205,9 +206,6 @@ A **browser-based** scene built with **Three.js** (r128) talks to a **FastAPI** 
 - **12 schools:** distinctive **white walls**, **red roofs**, **flagpoles** with stock-colored flags, **height ∝ vulnerability**  
 - **Depot**, **delivery vehicle** with **trail**, **HUD** (episode, step, reward, progress)  
 
-### Screenshot
-
-The live dashboard preview is also at the **top of this README** — file: **`docs/images/viz-dashboard.png`**. To refresh it, replace that image and commit; see **`docs/images/README.md`**.
 
 ### How it works
 
@@ -320,11 +318,6 @@ python training/pg_training.py       # REINFORCE, PPO, A2C → models/pg, result
 
 This repository is an **academic RL sandbox**; production deployment would require **real data**, **constraints** (roads, customs, budgets), and **governance**—but the **problem framing** matches genuine **last-mile social logistics**.
 
----
-
-## 📝 Report submission (PDF)
-
-Rubric-aligned **checklist, wording, and tables** for revising the summative report (action space, observability, DQN loss figure, API/visualization, video) live in **[REPORT_README.md](REPORT_README.md)**.
 
 ---
 
