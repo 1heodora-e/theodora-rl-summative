@@ -102,6 +102,26 @@ class VisualizationBridge:
             self.last_step_reward = 0.0
             return self.state_payload()
 
+    def step_random(self) -> dict[str, Any]:
+        """One env step using a uniform random action (assignment demo: no model, no heuristic)."""
+        with self.lock:
+            if self.done:
+                return self.state_payload()
+            action = int(self.env.np_random.integers(0, self.env.num_schools))
+            self.obs, reward, terminated, truncated, _ = self.env.step(action)
+            self.last_step_reward = float(reward)
+            self.total_reward += float(reward)
+            self.done = bool(terminated or truncated)
+            self.last_action = int(action)
+            target = self.env.schools[action]
+            self.vehicle = VehicleState(
+                x=float(target.x),
+                y=float(target.y),
+                target_school_id=action,
+                moving=True,
+            )
+            return self.state_payload()
+
     def _predict_action(self) -> int:
         if self._model is None:
             stock = self.env._stock_ratios()
@@ -158,6 +178,11 @@ def create_app(bridge: Optional[VisualizationBridge] = None) -> FastAPI:
     def root() -> FileResponse:
         return FileResponse(str(visual_dir / "index.html"))
 
+    @app.get("/random-demo")
+    def random_demo_page() -> FileResponse:
+        """Static Three.js page: random actions only (no trained model)."""
+        return FileResponse(str(visual_dir / "random_demo.html"))
+
     @app.get("/static/{filename}")
     def serve_static(filename: str) -> FileResponse:
         if ".." in filename or "/" in filename or "\\" in filename:
@@ -181,6 +206,13 @@ def create_app(bridge: Optional[VisualizationBridge] = None) -> FastAPI:
     def step() -> dict[str, Any]:
         try:
             return bridge.step_with_model()
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+    @app.post("/step_random")
+    def step_random() -> dict[str, Any]:
+        try:
+            return bridge.step_random()
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 

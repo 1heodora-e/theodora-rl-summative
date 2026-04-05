@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Random demo — Swift Haven (no trained model)</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; overflow: hidden; height: 100%;
+      font-family: "Segoe UI", system-ui, sans-serif; }
+    #canvas-wrap { position: fixed; inset: 0; z-index: 0; }
+    canvas { display: block; width: 100%; height: 100%; }
+
+    #hud-left {
+      position: fixed; top: 14px; left: 14px; z-index: 10;
+      width: 300px; max-height: calc(100vh - 28px); overflow-y: auto;
+      background: rgba(18, 28, 42, 0.88); border: 1px solid rgba(100, 140, 180, 0.35);
+      border-radius: 12px; padding: 14px 16px; color: #e8eef5;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+    }
+    #hud-left h1 {
+      margin: 0 0 10px 0; font-size: 15px; font-weight: 700; letter-spacing: 0.02em;
+      color: #7dd3c0; line-height: 1.25;
+    }
+    .hud-row { font-size: 12px; margin: 6px 0; line-height: 1.45; }
+    .hud-row .lbl { color: #94a3b8; }
+    .pads { color: #fbbf24; font-weight: 600; }
+    .reward-total { color: #4ade80; font-weight: 600; }
+    .last-del { color: #fff; font-weight: 500; }
+    .progress-wrap { margin-top: 10px; }
+    .progress-wrap .lbl { font-size: 11px; color: #94a3b8; margin-bottom: 4px; }
+    .progress-bar {
+      height: 10px; background: #1e293b; border-radius: 6px; overflow: hidden;
+      border: 1px solid #334155;
+    }
+    .progress-fill {
+      height: 100%; background: linear-gradient(90deg, #0d9488, #34d399);
+      border-radius: 5px; transition: width 0.35s ease;
+    }
+    .status-line { margin-top: 10px; font-size: 12px; }
+    .status-run { color: #4ade80; }
+    .status-pause { color: #fbbf24; }
+    .status-done { color: #94a3b8; }
+    #controls { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+    #controls button {
+      padding: 10px 12px; border: none; border-radius: 8px; font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: filter 0.15s;
+    }
+    #controls button:hover { filter: brightness(1.08); }
+    #btn-auto { background: #059669; color: #fff; }
+    #btn-step { background: #2563eb; color: #fff; }
+    #btn-reset { background: #b91c1c; color: #fff; }
+
+    #top-pill {
+      position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 10;
+      background: rgba(15, 23, 42, 0.92); border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 999px; padding: 10px 22px; font-size: 13px; font-weight: 600;
+      color: #f1f5f9; letter-spacing: 0.03em; white-space: nowrap;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.4); max-width: 92vw; overflow: hidden; text-overflow: ellipsis;
+    }
+    #top-pill span.sep { color: #64748b; margin: 0 10px; }
+
+    #reward-panel {
+      position: fixed; bottom: 18px; right: 18px; z-index: 10;
+      background: rgba(18, 28, 42, 0.9); border: 1px solid rgba(100, 140, 180, 0.35);
+      border-radius: 10px; padding: 12px 16px; min-width: 200px;
+      color: #e8eef5; font-size: 12px; box-shadow: 0 8px 28px rgba(0,0,0,0.4);
+    }
+    #reward-panel .title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.12em; color: #64748b; margin-bottom: 8px; }
+    #reward-panel .big { font-size: 20px; font-weight: 700; color: #fbbf24; }
+    #reward-panel .sub { margin-top: 6px; color: #4ade80; font-weight: 600; }
+
+    .legend-mini { margin-top: 12px; padding-top: 10px; border-top: 1px solid #334155; font-size: 10px; color: #64748b; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div id="canvas-wrap"></div>
+
+  <aside id="hud-left">
+    <h1>Random policy demo</h1>
+    <div class="hud-row" style="color:#fbbf24;font-size:11px;margin-bottom:8px">
+      Each step samples a <strong>random school</strong> (no SB3 model, no heuristic). For trained-agent viz use <code>/</code> (index.html).
+    </div>
+    <div class="hud-row"><span class="lbl">Episode</span> <span id="h-ep">—</span></div>
+    <div class="hud-row"><span class="lbl">Step</span> <span id="h-step">—</span></div>
+    <div class="hud-row"><span class="lbl">Week</span> <span id="h-week">—</span></div>
+    <div class="hud-row pads">Pads Remaining: <span id="h-pads">—</span></div>
+    <div class="hud-row reward-total">Total Reward: <span id="h-total-r">—</span></div>
+    <div class="hud-row last-del">Last Delivery: <span id="h-last">—</span></div>
+    <div class="progress-wrap">
+      <div class="lbl">Schools adequately stocked (≥60%)</div>
+      <div class="progress-bar"><div class="progress-fill" id="h-prog" style="width:0%"></div></div>
+      <div class="lbl" style="margin-top:4px" id="h-prog-txt">0 / 12</div>
+    </div>
+    <div class="status-line">Status: <span id="h-status" class="status-run">Running</span></div>
+    <div id="controls">
+      <button type="button" id="btn-auto">Auto Run</button>
+      <button type="button" id="btn-step">Step Once</button>
+      <button type="button" id="btn-reset">Reset</button>
+    </div>
+    <div class="legend-mini">
+      <strong>Assignment:</strong> static visualization with random actions only.<br />
+      Flag: red &lt;20% · amber 20–60% · green &gt;60% stock<br />
+      Schools: white walls (#FFFFFF), red roofs (#E63946) · City grid + Lake Muhazi-inspired water
+    </div>
+  </aside>
+
+  <div id="top-pill">
+    EPISODE <span id="p-ep">—</span><span class="sep">|</span>STEP <span id="p-step">—</span><span class="sep">|</span>DELIVERING TO: <span id="p-del">—</span>
+  </div>
+
+  <div id="reward-panel">
+    <div class="title">Rewards</div>
+    <div>Step reward</div>
+    <div class="big" id="r-step">0.00</div>
+    <div class="sub">Cumulative: <span id="r-cum">0.00</span></div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <script>
+(function () {
+  /* Norm [0,1] → world roughly [-400, +400] on X/Z */
+  var MAP = 800;
+  var DEPOT_NX = 0.5, DEPOT_NZ = 0.5;
+  var TERRAIN_SIZE = 1400;
+  var TERRAIN_SEG = 96;
+  var GRID_STEP = 100;
+  /* 40% of previous count (~60% reduction); heights medium–tall only */
+  var CITY_BUILDINGS = 128;
+  var BUILD_COLORS = [0xc1440e, 0xf5e6c8, 0x8ba7b5, 0xd4a843];
+
+  function terrainHeight(x, z) {
+    var s = 0.0028;
+    return Math.sin(x * s) * 10 + Math.cos(z * s * 1.05) * 8 + Math.sin(x * s * 1.9 + z * s * 1.4) * 4;
+  }
+
+  function worldFromNorm(nx, nz) {
+    var x = (nx - 0.5) * MAP;
+    var z = (nz - 0.5) * MAP;
+    var y = terrainHeight(x, z);
+    return new THREE.Vector3(x, y, z);
+  }
+
+  function flagColor(ratio) {
+    if (ratio < 0.2) return 0xdc2626;
+    if (ratio < 0.6) return 0xf59e0b;
+    return 0x16a34a;
+  }
+
+  function makeTextSprite(text, opts) {
+    opts = opts || {};
+    var fontsize = opts.fontsize || 28;
+    var canvas = document.createElement("canvas");
+    var ctx = canvas.getContext("2d");
+    ctx.font = "Bold " + fontsize + "px Segoe UI, Arial";
+    var w = ctx.measureText(text).width;
+    canvas.width = Math.pow(2, Math.ceil(Math.log2(Math.max(w + 24, 64))));
+    canvas.height = Math.pow(2, Math.ceil(Math.log2(fontsize + 24)));
+    ctx.font = "Bold " + fontsize + "px Segoe UI, Arial";
+    ctx.fillStyle = "rgba(15,23,42,0.82)";
+    ctx.strokeStyle = "rgba(148,163,184,0.9)";
+    ctx.lineWidth = 3;
+    var tw = ctx.measureText(text).width;
+    var tx = (canvas.width - tw) / 2;
+    var ty = canvas.height / 2 + fontsize * 0.32;
+    ctx.strokeText(text, tx, ty);
+    ctx.fillStyle = "#f8fafc";
+    ctx.fillText(text, tx, ty);
+    var tex = new THREE.CanvasTexture(canvas);
+    tex.needsUpdate = true;
+    var mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: true });
+    var sp = new THREE.Sprite(mat);
+    var sc = opts.scale || 4;
+    sp.scale.set((canvas.width / canvas.height) * sc, sc, 1);
+    return sp;
+  }
+
+  var container = document.getElementById("canvas-wrap");
+  var scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x4a6fa8);
+  scene.fog = new THREE.Fog(0x6b8cae, 350, 1400);
+
+  var camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 1, 4000);
+  camera.position.set(120, 200, 300);
+
+  var renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  container.appendChild(renderer.domElement);
+
+  var controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.05;
+  controls.maxPolarAngle = Math.PI * 0.495;
+  controls.minDistance = 120;
+  controls.maxDistance = 2200;
+  controls.target.set(0, 5, 0);
+
+  var hemi = new THREE.HemisphereLight(0x8ab4d4, 0x3d5c2e, 0.38);
+  scene.add(hemi);
+  var ambient = new THREE.AmbientLight(0x4a5568, 0.26);
+  scene.add(ambient);
+  /* Warm sunset-style key light from the right */
+  var sun = new THREE.DirectionalLight(0xffcc88, 0.55);
+  sun.position.set(950, 520, 280);
+  sun.castShadow = true;
+  sun.shadow.mapSize.width = 4096;
+  sun.shadow.mapSize.height = 4096;
+  sun.shadow.camera.near = 10;
+  sun.shadow.camera.far = 2500;
+  var sh = 650;
+  sun.shadow.camera.left = -sh;
+  sun.shadow.camera.right = sh;
+  sun.shadow.camera.top = sh;
+  sun.shadow.camera.bottom = -sh;
+  scene.add(sun);
+  var sunsetFill = new THREE.DirectionalLight(0xffa64d, 0.38);
+  sunsetFill.position.set(820, 380, -120);
+  scene.add(sunsetFill);
+
+  /* Rolling hills — wide terrain + vertex tint (green + brown patches) */
+  var tg = new THREE.PlaneGeometry(TERRAIN_SIZE, TERRAIN_SIZE, TERRAIN_SEG, TERRAIN_SEG);
+  tg.rotateX(-Math.PI / 2);
+  var tp = tg.attributes.position;
+  var colArr = [];
+  var colGreen = new THREE.Color(0x2d5a1b);
+  var colBrown = new THREE.Color(0x5c4a32);
+  for (var i = 0; i < tp.count; i++) {
+    var vx = tp.getX(i);
+    var vz = tp.getZ(i);
+    tp.setY(i, terrainHeight(vx, vz));
+    var patch = Math.sin(vx * 0.012) * Math.cos(vz * 0.01) + Math.sin(vx * 0.028 + vz * 0.024) * 0.45;
+    var vc = colGreen.clone();
+    if (patch > 0.35 || Math.sin(vx * 0.019 + vz * 0.017) > 0.82) {
+      vc.lerp(colBrown, 0.42 + Math.random() * 0.12);
+    }
+    colArr.push(vc.r, vc.g, vc.b);
+  }
+  tg.setAttribute("color", new THREE.Float32BufferAttribute(colArr, 3));
+  tg.computeVertexNormals();
+  var groundMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    vertexColors: true,
+    roughness: 0.93,
+    metalness: 0.03,
+    flatShading: false
+  });
+  var ground = new THREE.Mesh(tg, groundMat);
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  /* Lake Muhazi–inspired water — diagonal sheet */
+  var lakeGroup = new THREE.Group();
+  var lakeGeo = new THREE.PlaneGeometry(520, 140);
+  var lakeMat = new THREE.MeshStandardMaterial({
+    color: 0x1b6ca8,
+    roughness: 0.18,
+    metalness: 0.12,
+    transparent: true,
+    opacity: 0.9,
+    emissive: 0x0d4a7a
+  });
+  var lake = new THREE.Mesh(lakeGeo, lakeMat);
+  lake.rotation.x = -Math.PI / 2;
+  lake.rotation.z = Math.PI * 0.22;
+  var lx = 180, lz = -120;
+  lake.position.set(lx, terrainHeight(lx, lz) + 0.35, lz);
+  lake.receiveShadow = true;
+  lakeGroup.add(lake);
+  scene.add(lakeGroup);
+
+  /* City street grid — Kigali red dirt roads + warm glow */
+  var urbanGroup = new THREE.Group();
+  scene.add(urbanGroup);
+  var halfMap = MAP * 0.52;
+  var roadDirt = 0x8b3a0f;
+  var roadMat = new THREE.MeshStandardMaterial({
+    color: roadDirt,
+    roughness: 0.9,
+    metalness: 0.04,
+    emissive: 0x5c2808,
+    emissiveIntensity: 0.08
+  });
+  var roadGlowMat = new THREE.MeshBasicMaterial({
+    color: 0xd4783a,
+    transparent: true,
+    opacity: 0.28,
+    depthWrite: false
+  });
+  var lineH = 0.35;
+  var lineW = 1.8;
+  var extent = halfMap + 40;
+  for (var gx = -extent; gx <= extent; gx += GRID_STEP) {
+    var len = extent * 2 + 80;
+    var strip = new THREE.Mesh(new THREE.BoxGeometry(lineW, lineH, len), roadMat);
+    strip.position.set(gx, terrainHeight(gx, 0) + lineH * 0.5, 0);
+    strip.receiveShadow = true;
+    urbanGroup.add(strip);
+    var glow = new THREE.Mesh(new THREE.BoxGeometry(lineW + 2.5, 0.08, len + 4), roadGlowMat);
+    glow.position.set(gx, terrainHeight(gx, 0) + 0.12, 0);
+    urbanGroup.add(glow);
+  }
+  for (var gz = -extent; gz <= extent; gz += GRID_STEP) {
+    var len2 = extent * 2 + 80;
+    var strip2 = new THREE.Mesh(new THREE.BoxGeometry(len2, lineH, lineW), roadMat);
+    strip2.position.set(0, terrainHeight(0, gz) + lineH * 0.5, gz);
+    strip2.receiveShadow = true;
+    urbanGroup.add(strip2);
+    var glow2 = new THREE.Mesh(new THREE.BoxGeometry(len2 + 4, 0.08, lineW + 2.5), roadGlowMat);
+    glow2.position.set(0, terrainHeight(0, gz) + 0.12, gz);
+    urbanGroup.add(glow2);
+  }
+
+  /* Street lights at grid intersections */
+  function addStreetLight(px, pz) {
+    var y0 = terrainHeight(px, pz) + lineH;
+    var pole = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.35, 0.45, 14, 8),
+      new THREE.MeshStandardMaterial({ color: 0x3d4450, roughness: 0.85 })
+    );
+    pole.position.set(px, y0 + 7, pz);
+    pole.castShadow = true;
+    urbanGroup.add(pole);
+    var bulb = new THREE.Mesh(
+      new THREE.SphereGeometry(1.1, 10, 10),
+      new THREE.MeshStandardMaterial({
+        color: 0xffe4b8,
+        emissive: 0xffb020,
+        emissiveIntensity: 1.15,
+        roughness: 0.35
+      })
+    );
+    bulb.position.set(px, y0 + 14.2, pz);
+    urbanGroup.add(bulb);
+  }
+  var lightStep = GRID_STEP * 3;
+  for (var lx2 = -extent; lx2 <= extent; lx2 += lightStep) {
+    for (var lz2 = -extent; lz2 <= extent; lz2 += lightStep) {
+      if (Math.abs(lx2) < 55 && Math.abs(lz2) < 55) continue;
+      addStreetLight(lx2, lz2);
+    }
+  }
+
+  /* City blocks — medium & tall only (no short buildings), varied African-city palette */
+  function rand(a, b) { return a + Math.random() * (b - a); }
+  for (var b = 0; b < CITY_BUILDINGS; b++) {
+    var bx = rand(-halfMap * 0.92, halfMap * 0.92);
+    var bz = rand(-halfMap * 0.92, halfMap * 0.92);
+    if (Math.abs(bx) < 70 && Math.abs(bz) < 70) continue;
+    var bw = rand(10, 22);
+    var bd = rand(10, 22);
+    var bh = rand(14, 25);
+    var by = terrainHeight(bx, bz);
+    var bcol = BUILD_COLORS[Math.floor(Math.random() * BUILD_COLORS.length)];
+    var box = new THREE.Mesh(
+      new THREE.BoxGeometry(bw, bh, bd),
+      new THREE.MeshStandardMaterial({ color: bcol, roughness: 0.86, metalness: 0.05 })
+    );
+    box.position.set(bx, by + bh * 0.5, bz);
+    box.castShadow = true;
+    box.receiveShadow = true;
+    urbanGroup.add(box);
+  }
+
+  /* Clouds — 50% smaller puffs, high sky (y 180–220) so city stays clear */
+  function addCloud(px, py, pz, s) {
+    var g = new THREE.Group();
+    var half = 0.5;
+    for (var c = 0; c < 5; c++) {
+      var sg = new THREE.SphereGeometry(s * half * (0.35 + Math.random() * 0.35), 10, 10);
+      var sm = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0, transparent: true, opacity: 0.9 });
+      var m = new THREE.Mesh(sg, sm);
+      m.position.set((Math.random() - 0.5) * s * half * 1.8, (Math.random() - 0.5) * s * half * 0.4, (Math.random() - 0.5) * s * half * 1.2);
+      g.add(m);
+    }
+    g.position.set(px, py, pz);
+    scene.add(g);
+  }
+  addCloud(-420, 195, -280, 28);
+  addCloud(380, 205, 200, 32);
+  addCloud(-120, 218, 360, 24);
+  addCloud(450, 188, -320, 30);
+
+  /* Central depot — large blue warehouse */
+  var depotPos = worldFromNorm(DEPOT_NX, DEPOT_NZ);
+  var depotGroup = new THREE.Group();
+  var depotBase = new THREE.Mesh(
+    new THREE.BoxGeometry(42, 18, 36),
+    new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.55, metalness: 0.25 })
+  );
+  depotBase.position.y = 9 + depotPos.y;
+  depotBase.castShadow = true;
+  depotBase.receiveShadow = true;
+  depotGroup.add(depotBase);
+  var depotTrim = new THREE.Mesh(
+    new THREE.BoxGeometry(44, 2.2, 38),
+    new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.65 })
+  );
+  depotTrim.position.y = 18.5 + depotPos.y;
+  depotGroup.add(depotTrim);
+  var dockLight = new THREE.Mesh(
+    new THREE.BoxGeometry(8, 1.2, 2.5),
+    new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xf59e0b, emissiveIntensity: 0.5 })
+  );
+  dockLight.position.set(22, 6 + depotPos.y, 0);
+  depotGroup.add(dockLight);
+  depotGroup.position.set(depotPos.x, 0, depotPos.z);
+  scene.add(depotGroup);
+  var depotLabel = makeTextSprite("Swift Haven Depot", { fontsize: 32, scale: 28 });
+  depotLabel.position.set(depotPos.x, depotPos.y + 32, depotPos.z);
+  scene.add(depotLabel);
+
+  var dockPulse = 0;
+
+  var roadGroup = new THREE.Group();
+  scene.add(roadGroup);
+
+  function roadSegment(from, to) {
+    var mid = new THREE.Vector3().addVectors(from, to).multiplyScalar(0.5);
+    var dir = new THREE.Vector3().subVectors(to, from);
+    var len = dir.length();
+    if (len < 0.01) return;
+    dir.normalize();
+    var w = 14;
+    var geo = new THREE.BoxGeometry(len, 0.45, w);
+    var mat = new THREE.MeshStandardMaterial({ color: 0x8b3a0f, roughness: 0.9, metalness: 0, emissive: 0x4a2006, emissiveIntensity: 0.06 });
+    var mesh = new THREE.Mesh(geo, mat);
+    mesh.position.copy(mid);
+    mesh.position.y = (from.y + to.y) * 0.5 + 0.2;
+    mesh.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir);
+    mesh.receiveShadow = true;
+    roadGroup.add(mesh);
+  }
+
+  var treeGroup = new THREE.Group();
+  scene.add(treeGroup);
+  function addTree(wx, wz) {
+    var y0 = terrainHeight(wx, wz);
+    var trunk = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.2, 1.6, 12, 8),
+      new THREE.MeshStandardMaterial({ color: 0x5c4030, roughness: 0.9 })
+    );
+    trunk.position.set(wx, y0 + 6, wz);
+    trunk.castShadow = true;
+    treeGroup.add(trunk);
+    var crown = new THREE.Mesh(
+      new THREE.SphereGeometry(7 + Math.random() * 4, 10, 10),
+      new THREE.MeshStandardMaterial({ color: 0x1e6b32, roughness: 0.88 })
+    );
+    crown.position.set(wx + (Math.random() - 0.3) * 3, y0 + 16, wz + (Math.random() - 0.3) * 3);
+    crown.scale.set(1, 1.25, 1);
+    crown.castShadow = true;
+    treeGroup.add(crown);
+  }
+  for (var t = 0; t < 180; t++) {
+    var tx = (Math.random() - 0.5) * MAP * 0.95;
+    var tz = (Math.random() - 0.5) * MAP * 0.95;
+    if (Math.abs(tx) < 90 && Math.abs(tz) < 90) continue;
+    addTree(tx, tz);
+  }
+
+  /* Vehicle — large + orange running light */
+  var vehicleGroup = new THREE.Group();
+  vehicleGroup.scale.set(8.4, 8.4, 8.4);
+  var vehicleBeacon = new THREE.PointLight(0xff6600, 2.2, 180, 1.8);
+  vehicleBeacon.position.set(0, 2.2, 0);
+  vehicleGroup.add(vehicleBeacon);
+  var bodyMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.45, metalness: 0.12 });
+  var stripeMat = new THREE.MeshStandardMaterial({ color: 0xea580c, roughness: 0.55 });
+  var body = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.75, 1.05), bodyMat);
+  body.position.y = 0.45;
+  body.castShadow = true;
+  vehicleGroup.add(body);
+  var cab = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.85, 0.95), bodyMat);
+  cab.position.set(-0.95, 0.5, 0);
+  cab.castShadow = true;
+  vehicleGroup.add(cab);
+  var stripe = new THREE.Mesh(new THREE.BoxGeometry(1.95, 0.18, 1.08), stripeMat);
+  stripe.position.set(0.1, 0.5, 0);
+  vehicleGroup.add(stripe);
+  vehicleGroup.position.copy(depotPos);
+  vehicleGroup.position.y += 2;
+  scene.add(vehicleGroup);
+
+  var vehicleTarget = depotPos.clone();
+  vehicleTarget.y += 2;
+
+  var trailMax = 800;
+  var trailGeo = new THREE.BufferGeometry();
+  var trailPos = new Float32Array(trailMax * 3);
+  trailGeo.setAttribute("position", new THREE.BufferAttribute(trailPos, 3));
+  trailGeo.setDrawRange(0, 0);
+  var trailMat = new THREE.PointsMaterial({ color: 0xff6600, size: 5, transparent: true, opacity: 0.55, sizeAttenuation: true });
+  var trailPoints = new THREE.Points(trailGeo, trailMat);
+  scene.add(trailPoints);
+  var trailCount = 0;
+  var trailLineGeo = new THREE.BufferGeometry();
+  var trailLinePos = new Float32Array(trailMax * 3);
+  trailLineGeo.setAttribute("position", new THREE.BufferAttribute(trailLinePos, 3));
+  var trailLineMat = new THREE.LineBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.92 });
+  var trailLine = new THREE.Line(trailLineGeo, trailLineMat);
+  scene.add(trailLine);
+  var trailLineCount = 0;
+  var trailLastSample = new THREE.Vector3();
+
+  function pushTrail(p) {
+    if (trailCount < trailMax) {
+      trailPos[trailCount * 3] = p.x;
+      trailPos[trailCount * 3 + 1] = p.y;
+      trailPos[trailCount * 3 + 2] = p.z;
+      trailCount++;
+    } else {
+      for (var i = 0; i < trailMax - 1; i++) {
+        trailPos[i * 3] = trailPos[(i + 1) * 3];
+        trailPos[i * 3 + 1] = trailPos[(i + 1) * 3 + 1];
+        trailPos[i * 3 + 2] = trailPos[(i + 1) * 3 + 2];
+      }
+      var j = (trailMax - 1) * 3;
+      trailPos[j] = p.x;
+      trailPos[j + 1] = p.y;
+      trailPos[j + 2] = p.z;
+    }
+    trailGeo.attributes.position.needsUpdate = true;
+    trailGeo.setDrawRange(0, trailCount);
+    if (trailLineCount < trailMax) {
+      trailLinePos[trailLineCount * 3] = p.x;
+      trailLinePos[trailLineCount * 3 + 1] = p.y;
+      trailLinePos[trailLineCount * 3 + 2] = p.z;
+      trailLineCount++;
+    } else {
+      for (var k = 0; k < trailMax - 1; k++) {
+        trailLinePos[k * 3] = trailLinePos[(k + 1) * 3];
+        trailLinePos[k * 3 + 1] = trailLinePos[(k + 1) * 3 + 1];
+        trailLinePos[k * 3 + 2] = trailLinePos[(k + 1) * 3 + 2];
+      }
+      var jj = (trailMax - 1) * 3;
+      trailLinePos[jj] = p.x;
+      trailLinePos[jj + 1] = p.y;
+      trailLinePos[jj + 2] = p.z;
+    }
+    trailLineGeo.attributes.position.needsUpdate = true;
+    trailLineGeo.setDrawRange(0, trailLineCount);
+    trailLastSample.copy(p);
+  }
+
+  function resetTrail() {
+    trailCount = 0;
+    trailGeo.setDrawRange(0, 0);
+    trailLineCount = 0;
+    trailLineGeo.setDrawRange(0, 0);
+    trailLastSample.set(999999, 999999, 999999);
+  }
+
+  var targetRing = new THREE.Mesh(
+    new THREE.RingGeometry(7, 14, 56),
+    new THREE.MeshBasicMaterial({ color: 0xff7700, transparent: true, opacity: 0.62, side: THREE.DoubleSide, depthWrite: false })
+  );
+  targetRing.rotation.x = -Math.PI / 2;
+  targetRing.visible = false;
+  scene.add(targetRing);
+  var targetRingPhase = 0;
+
+  var schoolMeshes = {};
+  var schoolLabels = {};
+  var districtSprites = [];
+  var roadsBuilt = false;
+
+  var BASE_SCHOOL_H = 3.3;
+  var SCHOOL_LABEL_OFFSET = 15;
+
+  function schoolHeight(vuln) {
+    return (1.1 + vuln * 2.2) * 1.3;
+  }
+
+  function stockLightHex(ratio) {
+    if (ratio < 0.2) return 0xdc2626;
+    if (ratio < 0.6) return 0xf59e0b;
+    return 0x16a34a;
+  }
+
+  function buildSchool(state) {
+    state.schools.forEach(function (sch) {
+      if (schoolMeshes[sch.id]) return;
+      var wp = worldFromNorm(sch.x, sch.y);
+      var h = schoolHeight(sch.vulnerability);
+      var g = new THREE.Group();
+      var wallMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.65 });
+      var walls = new THREE.Mesh(new THREE.BoxGeometry(2.2, BASE_SCHOOL_H, 2.0), wallMat);
+      walls.scale.y = h / BASE_SCHOOL_H;
+      walls.position.y = h * 0.5 + wp.y;
+      walls.castShadow = true;
+      walls.receiveShadow = true;
+      g.add(walls);
+      var roof = new THREE.Mesh(
+        new THREE.BoxGeometry(2.45, 0.35, 2.25),
+        new THREE.MeshStandardMaterial({ color: 0xe63946, roughness: 0.45, metalness: 0.12 })
+      );
+      roof.position.y = h + 0.2 + wp.y;
+      roof.castShadow = true;
+      g.add(roof);
+      var slHex = stockLightHex(sch.stock_ratio);
+      var stockLight = new THREE.PointLight(slHex, 1.8, 120, 2);
+      stockLight.position.set(0, h + 8, 0);
+      g.add(stockLight);
+      g.userData.stockLight = stockLight;
+      var pole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.06, 0.9, 8),
+        new THREE.MeshStandardMaterial({ color: 0x44403a })
+      );
+      pole.position.set(0.7, h + 0.45 + wp.y, 0.6);
+      g.add(pole);
+      var flagCol = flagColor(sch.stock_ratio);
+      var flag = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.55, 0.38),
+        new THREE.MeshStandardMaterial({ color: flagCol, side: THREE.DoubleSide, roughness: 0.6 })
+      );
+      flag.position.set(1.05, h + 0.65 + wp.y, 0.6);
+      flag.rotation.y = Math.PI * 0.15;
+      g.add(flag);
+      g.userData.flag = flag;
+      g.userData.walls = walls;
+      g.userData.roof = roof;
+      g.userData.pole = pole;
+      g.position.set(wp.x, 0, wp.z);
+      scene.add(g);
+      schoolMeshes[sch.id] = g;
+      var sp = makeTextSprite(sch.name, { fontsize: 24, scale: 22 });
+      sp.position.set(wp.x, h + wp.y + SCHOOL_LABEL_OFFSET, wp.z);
+      scene.add(sp);
+      schoolLabels[sch.id] = sp;
+    });
+  }
+
+  function buildRoads(state) {
+    if (roadsBuilt) return;
+    roadsBuilt = true;
+    var d = worldFromNorm(DEPOT_NX, DEPOT_NZ);
+    state.schools.forEach(function (sch) {
+      var s = worldFromNorm(sch.x, sch.y);
+      roadSegment(d, s);
+    });
+  }
+
+  var DISTRICT_LABEL_Y = 80;
+
+  function districtLabels(state) {
+    if (districtSprites.length) return;
+    var groups = { Gasabo: [], Nyarugenge: [], Kicukiro: [] };
+    state.schools.forEach(function (s) {
+      if (groups[s.district]) groups[s.district].push(s);
+    });
+    Object.keys(groups).forEach(function (name) {
+      var arr = groups[name];
+      if (!arr.length) return;
+      var sx = 0, sz = 0;
+      arr.forEach(function (s) { sx += s.x; sz += s.y; });
+      sx /= arr.length;
+      sz /= arr.length;
+      var w = worldFromNorm(sx, sz);
+      var sp = makeTextSprite(name + " District", { fontsize: 36, scale: 38 });
+      sp.position.set(w.x, w.y + DISTRICT_LABEL_Y, w.z);
+      scene.add(sp);
+      districtSprites.push(sp);
+    });
+  }
+
+  function updateSchools(state) {
+    buildSchool(state);
+    buildRoads(state);
+    districtLabels(state);
+    state.schools.forEach(function (sch) {
+      var g = schoolMeshes[sch.id];
+      if (!g) return;
+      var wp = worldFromNorm(sch.x, sch.y);
+      var h = schoolHeight(sch.vulnerability);
+      var wall = g.userData.walls;
+      if (wall) {
+        wall.scale.y = h / BASE_SCHOOL_H;
+        wall.position.y = h * 0.5 + wp.y;
+      }
+      var roof = g.userData.roof;
+      if (roof) roof.position.y = h + 0.2 + wp.y;
+      var pole = g.userData.pole;
+      if (pole) pole.position.set(0.7, h + 0.45 + wp.y, 0.6);
+      var flag = g.userData.flag;
+      if (flag) {
+        flag.material.color.setHex(flagColor(sch.stock_ratio));
+        flag.position.set(1.05, h + 0.65 + wp.y, 0.6);
+      }
+      var sl = g.userData.stockLight;
+      if (sl) {
+        sl.color.setHex(stockLightHex(sch.stock_ratio));
+        sl.position.set(0, h + 8, 0);
+      }
+      g.position.set(wp.x, 0, wp.z);
+      var sp = schoolLabels[sch.id];
+      if (sp) sp.position.set(wp.x, h + wp.y + SCHOOL_LABEL_OFFSET, wp.z);
+    });
+  }
+
+  var lastEp = -1;
+  var lastStep = -1;
+
+  function applyState(state) {
+    var seedTrailThisFrame = false;
+    if (state.episode !== lastEp) {
+      resetTrail();
+      lastEp = state.episode;
+      seedTrailThisFrame = true;
+      lastStep = state.step;
+    }
+    updateSchools(state);
+
+    var v = state.vehicle;
+    if (v) {
+      vehicleTarget.copy(worldFromNorm(v.x, v.y));
+      vehicleTarget.y += 2;
+      if (seedTrailThisFrame) {
+        var seedP = worldFromNorm(v.x, v.y);
+        seedP.y += 2;
+        pushTrail(seedP);
+      }
+      if (state.step !== lastStep && state.last_action != null) {
+        pushTrail(vehicleGroup.position.clone());
+        lastStep = state.step;
+      }
+      var dn = Math.hypot(v.x - DEPOT_NX, v.y - DEPOT_NZ);
+      if (dn > 0.02) dockPulse = 1;
+      if (typeof v.target_school_id === "number" && schoolMeshes[v.target_school_id]) {
+        var tgtSch = null;
+        state.schools.forEach(function (s) {
+          if (s.id === v.target_school_id) tgtSch = s;
+        });
+        if (tgtSch) {
+          var tw = worldFromNorm(tgtSch.x, tgtSch.y);
+          targetRing.position.set(tw.x, tw.y + 0.45, tw.z);
+          targetRing.visible = true;
+        } else {
+          targetRing.visible = false;
+        }
+      } else {
+        targetRing.visible = false;
+      }
+    } else {
+      targetRing.visible = false;
+    }
+
+    var covered = 0;
+    state.schools.forEach(function (s) {
+      if (s.stock_ratio >= 0.6) covered++;
+    });
+    var pct = (covered / 12) * 100;
+
+    document.getElementById("h-ep").textContent = state.episode;
+    document.getElementById("h-step").textContent = state.step;
+    document.getElementById("h-week").textContent = state.week;
+    document.getElementById("h-pads").textContent = Math.round(state.depot_stock);
+    document.getElementById("h-total-r").textContent = state.total_reward.toFixed(2);
+    document.getElementById("h-last").textContent = state.last_action_name || "—";
+    document.getElementById("h-prog").style.width = pct + "%";
+    document.getElementById("h-prog-txt").textContent = covered + " / 12";
+    document.getElementById("p-ep").textContent = state.episode;
+    document.getElementById("p-step").textContent = state.step;
+    document.getElementById("p-del").textContent = (state.last_action_name || "—").toUpperCase();
+
+    var stEl = document.getElementById("h-status");
+    if (state.done) {
+      stEl.textContent = "Episode complete";
+      stEl.className = "status-done";
+    } else if (autoRun) {
+      stEl.textContent = "Running (auto)";
+      stEl.className = "status-run";
+    } else {
+      stEl.textContent = "Paused";
+      stEl.className = "status-pause";
+    }
+
+    var lsr = typeof state.last_step_reward === "number" ? state.last_step_reward : 0;
+    document.getElementById("r-step").textContent = lsr.toFixed(2);
+    document.getElementById("r-cum").textContent = state.total_reward.toFixed(2);
+  }
+
+  var autoRun = false;
+  var autoId = null;
+
+  function postStep() {
+    return fetch("/step_random", { method: "POST" }).then(function (r) { return r.json(); });
+  }
+  function postReset() {
+    return fetch("/reset", { method: "POST" }).then(function (r) { return r.json(); });
+  }
+  function fetchState() {
+    return fetch("/state").then(function (r) { return r.json(); });
+  }
+
+  document.getElementById("btn-step").addEventListener("click", function () {
+    postStep().then(applyState).catch(function () {});
+  });
+  document.getElementById("btn-reset").addEventListener("click", function () {
+    postReset().then(applyState).catch(function () {});
+  });
+  document.getElementById("btn-auto").addEventListener("click", function () {
+    autoRun = !autoRun;
+    document.getElementById("btn-auto").textContent = autoRun ? "Stop Auto" : "Auto Run";
+    if (autoId) clearInterval(autoId);
+    if (autoRun) {
+      autoId = setInterval(function () {
+        postStep().then(applyState).catch(function () {});
+      }, 500);
+    }
+  });
+
+  setInterval(function () {
+    fetchState().then(applyState).catch(function () {});
+  }, 500);
+
+  function animate() {
+    requestAnimationFrame(animate);
+    vehicleGroup.position.lerp(vehicleTarget, 0.015);
+    if (trailLineCount > 0 && vehicleGroup.position.distanceTo(trailLastSample) > 12) {
+      pushTrail(vehicleGroup.position.clone());
+    }
+    var lookT = vehicleGroup.position.clone();
+    controls.target.lerp(lookT, 0.015);
+    if (targetRing.visible) {
+      targetRingPhase += 0.05;
+      var pulse = 0.88 + 0.14 * Math.sin(targetRingPhase);
+      targetRing.scale.set(pulse, pulse, 1);
+      targetRing.material.opacity = 0.42 + 0.22 * Math.sin(targetRingPhase + 0.7);
+    }
+    dockPulse *= 0.92;
+    if (dockLight && dockLight.material) {
+      var inten = 0.35 + dockPulse * 0.9;
+      if (typeof dockLight.material.emissiveIntensity === "number") {
+        dockLight.material.emissiveIntensity = inten;
+      } else {
+        dockLight.material.emissive.setRGB(inten * 0.95, inten * 0.6, inten * 0.15);
+      }
+    }
+    controls.update();
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  window.addEventListener("resize", function () {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  fetchState().then(applyState).catch(function () {});
+})();
+  </script>
+</body>
+</html>

@@ -13,7 +13,7 @@
 <p align="center">
   <img src="docs/images/viz-dashboard.png" alt="Swift Haven 3D distribution dashboard — Kigali districts, depot, schools, live HUD and rewards" width="920"/>
   <br />
-  <em>Three.js + FastAPI at <code>localhost:8080</code>: episode/step, depot, deliveries, district labels (e.g. Gasabo).</em>
+  <em>Three.js + FastAPI at <code>localhost:8080</code> with best DQN (<code>main.py</code>): episode/step, depot, deliveries, district labels (e.g. Gasabo).</em>
 </p>
 
 </div>
@@ -214,7 +214,7 @@ The live dashboard preview is also at the **top of this README** — file: **`do
 ### How it works
 
 1. **FastAPI** (`environment/rendering.py`) serves **`GET /state`**, **`POST /step`**, **`POST /reset`**, and static **`/static/...`** / **`GET /`** for the UI.  
-2. **`VisualizationBridge`** holds a **thread-safe** copy of env state and can step using a **loaded SB3 model** (e.g. DQN) or heuristics.  
+2. **`VisualizationBridge`** holds a **thread-safe** copy of env state. **`python main.py`** loads **`models/dqn/dqn_run_09.zip`** (best DQN) for **`POST /step`**. Running **`uvicorn ... create_app`** with no bridge uses a **heuristic** instead (no checkpoint).  
 3. **`visualization/index.html`** **polls `/state` every 500 ms** and lerps the truck between normalized coordinates.  
 
 **Random-action demo (no model):** open **`http://localhost:8080/random-demo`** or **`/static/random_demo.html`**. The UI matches the main scene but **`POST /step_random`** samples a **uniform random school** each step (assignment requirement: visualize env without training).
@@ -246,7 +246,7 @@ pip install -r requirements.txt
 | Context | Steps |
 |--------|--------|
 | **Kaggle** | Upload this repo (or attach as a **Dataset**), open **`notebooks/model-training.ipynb`** or **`notebooks/kaggle_visualization.py`**, enable **GPU** for training; for the live 3D demo use **`kaggle_visualization.py`** with your saved **`models/dqn/dqn_run_09.zip`** and optional **pyngrok** tunnel. **Note:** Some Windows setups block NumPy DLLs via **Application Control / Defender**; Kaggle avoids that. |
-| **Local** | From repo root: `python main.py` **or** `uvicorn environment.rendering:create_app --factory --host 0.0.0.0 --port 8080` → open **`http://localhost:8080`**. |
+| **Local** | From repo root: **`python main.py`** (loads best **DQN**; requires **`models/dqn/dqn_run_09.zip`**) → **`http://localhost:8080`**. For API without a model (heuristic stepping), use `uvicorn environment.rendering:create_app --factory --host 0.0.0.0 --port 8080`. |
 
 **Dependencies (high level):** `gymnasium`, `stable-baselines3`, `torch`, `fastapi`, `uvicorn`, `matplotlib`, `pandas`, … — see **`requirements.txt`**.
 
@@ -258,7 +258,7 @@ pip install -r requirements.txt
 theodora-rl-summative/
 ├── CURSOR_CONTEXT.MD          # Author / assignment context for development
 ├── README.md
-├── main.py                    # Launches FastAPI + uvicorn on :8080
+├── main.py                    # FastAPI + uvicorn; loads best DQN (dqn_run_09.zip)
 ├── requirements.txt
 ├── environment/
 │   ├── custom_env.py          # KigaliPadDistributionEnv (Gymnasium)
@@ -271,7 +271,7 @@ theodora-rl-summative/
 │       ├── README.md           # Notes for the dashboard capture
 │       └── viz-dashboard.png   # README hero — 3D UI screenshot
 ├── visualization/
-│   ├── index.html             # Three.js + trained model / heuristic (`/step`)
+│   ├── index.html             # Three.js UI (`/step` = DQN via main.py, else heuristic)
 │   └── random_demo.html       # Same scene; random actions only (`/step_random`)
 ├── models/
 │   ├── dqn/                   # Saved DQN .zip checkpoints (e.g. dqn_run_09.zip)
