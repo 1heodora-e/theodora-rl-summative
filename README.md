@@ -10,6 +10,12 @@
 
 [![Video Demo](https://img.shields.io/badge/Video-Demo-red?logo=youtube)](https://www.youtube.com/watch?v=PLACEHOLDER) · [![Kaggle Notebook](https://img.shields.io/badge/Kaggle-Notebook-20BEFF?logo=kaggle)](https://www.kaggle.com/code/PLACEHOLDER)
 
+<p align="center">
+  <img src="docs/images/viz-dashboard.png" alt="Swift Haven 3D distribution dashboard — Kigali districts, depot, schools, live HUD and rewards" width="920"/>
+  <br />
+  <em>Three.js + FastAPI at <code>localhost:8080</code>: episode/step, depot, deliveries, district labels (e.g. Gasabo).</em>
+</p>
+
 </div>
 
 ---
@@ -128,6 +134,69 @@ All algorithms train on the **same** `KigaliPadDistributionEnv` (no environment 
 
 ---
 
+## 📈 Plots & graphs
+
+All figures below are stored in **`plots/`** and are produced from the training logs under **`results/`** (see `notebooks/model-training.ipynb`). Paths are **relative to the repo root** so they render on GitHub and in local Markdown viewers.
+
+### Cumulative reward curves (four algorithms)
+
+Mean or episodic reward over training—**DQN**, **PPO**, **A2C**, and **REINFORCE** on the same environment.
+
+<p align="center">
+  <img src="plots/cumulative_reward_curves.png" alt="Cumulative reward curves for all four RL algorithms" width="920"/>
+</p>
+
+### Algorithm comparison
+
+Side-by-side view of final or best-run performance across methods.
+
+<p align="center">
+  <img src="plots/algorithm_comparison.png" alt="Bar or summary comparison of algorithms" width="720"/>
+</p>
+
+### Hyperparameter sweep rewards
+
+Reward across the **10 hyperparameter trials** per family (from the coursework sweep).
+
+<p align="center">
+  <img src="plots/hyperparameter_sweep_rewards.png" alt="Hyperparameter sweep mean rewards" width="920"/>
+</p>
+
+### Convergence & training dynamics
+
+Episodes-to-threshold or stability-style plots (includes objective / loss-style panels where applicable).
+
+<p align="center">
+  <img src="plots/convergence_plots.png" alt="Convergence and training dynamics plots" width="920"/>
+</p>
+
+### Policy-gradient entropy (REINFORCE)
+
+Entropy trajectory for **REINFORCE** runs—useful for diagnosing exploration collapse vs. sustained stochasticity.
+
+<p align="center">
+  <img src="plots/reinforce_entropy_curves.png" alt="REINFORCE entropy over training" width="920"/>
+</p>
+
+### Generalization test
+
+Performance on **held-out / unseen initial states** after training.
+
+<p align="center">
+  <img src="plots/generalization_test.png" alt="Generalization test results" width="720"/>
+</p>
+
+| File | Role |
+|------|------|
+| `plots/cumulative_reward_curves.png` | Learning curves — all four algorithms |
+| `plots/algorithm_comparison.png` | Aggregate comparison |
+| `plots/hyperparameter_sweep_rewards.png` | 10-run sweeps per algorithm |
+| `plots/convergence_plots.png` | Convergence / loss-style diagnostics |
+| `plots/reinforce_entropy_curves.png` | REINFORCE entropy |
+| `plots/generalization_test.png` | Out-of-distribution initial conditions |
+
+---
+
 ## 🌆 3D Visualization
 
 A **browser-based** scene built with **Three.js** (r128) talks to a **FastAPI** backend that exposes the live environment state.
@@ -140,17 +209,15 @@ A **browser-based** scene built with **Three.js** (r128) talks to a **FastAPI** 
 
 ### Screenshot
 
-<p align="center">
-  <img src="plots/viz-screenshot-placeholder.png" alt="3D Kigali pad distribution visualization (add your screenshot)" width="800"/>
-  <br />
-  <em>Add <code>plots/viz-screenshot-placeholder.png</code> or update this path after you capture the viewport.</em>
-</p>
+The live dashboard preview is also at the **top of this README** — file: **`docs/images/viz-dashboard.png`**. To refresh it, replace that image and commit; see **`docs/images/README.md`**.
 
 ### How it works
 
 1. **FastAPI** (`environment/rendering.py`) serves **`GET /state`**, **`POST /step`**, **`POST /reset`**, and static **`/static/...`** / **`GET /`** for the UI.  
 2. **`VisualizationBridge`** holds a **thread-safe** copy of env state and can step using a **loaded SB3 model** (e.g. DQN) or heuristics.  
 3. **`visualization/index.html`** **polls `/state` every 500 ms** and lerps the truck between normalized coordinates.  
+
+**Random-action demo (no model):** open **`http://localhost:8080/random-demo`** or **`/static/random_demo.html`**. The UI matches the main scene but **`POST /step_random`** samples a **uniform random school** each step (assignment requirement: visualize env without training).
 
 ```bash
 # Local API + UI (default port 8080)
@@ -199,13 +266,18 @@ theodora-rl-summative/
 ├── notebooks/
 │   ├── model-training.ipynb   # Full 40-run training + exports (Kaggle GPU)
 │   └── kaggle_visualization.py # DQN + FastAPI + optional pyngrok on Kaggle
+├── docs/
+│   └── images/
+│       ├── README.md           # Notes for the dashboard capture
+│       └── viz-dashboard.png   # README hero — 3D UI screenshot
 ├── visualization/
-│   └── index.html             # Three.js scene + HUD (single-page app)
+│   ├── index.html             # Three.js + trained model / heuristic (`/step`)
+│   └── random_demo.html       # Same scene; random actions only (`/step_random`)
 ├── models/
 │   ├── dqn/                   # Saved DQN .zip checkpoints (e.g. dqn_run_09.zip)
 │   └── pg/                    # PPO, A2C, REINFORCE artifacts (as produced on Kaggle)
 ├── results/                   # CSV logs: per-run rewards, entropy, aggregates
-└── plots/                     # Figures / screenshots for reports
+└── plots/                     # Figures: rewards, sweeps, convergence, entropy, generalization
 ```
 
 ---
@@ -249,6 +321,12 @@ python training/pg_training.py       # REINFORCE, PPO, A2C → models/pg, result
 - Extend beyond Kigali to **national** or **cross-border** programs across **Rwanda** and similar contexts in **Africa**  
 
 This repository is an **academic RL sandbox**; production deployment would require **real data**, **constraints** (roads, customs, budgets), and **governance**—but the **problem framing** matches genuine **last-mile social logistics**.
+
+---
+
+## 📝 Report submission (PDF)
+
+Rubric-aligned **checklist, wording, and tables** for revising the summative report (action space, observability, DQN loss figure, API/visualization, video) live in **[REPORT_README.md](REPORT_README.md)**.
 
 ---
 

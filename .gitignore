@@ -11,6 +11,8 @@ venv/
 # OS / IDE
 .DS_Store
 Thumbs.db
+# Root-level Windows captures (README uses docs/images/viz-dashboard.png)
+Screenshot *.png
 
 # Jupyter
 .ipynb_checkpoints/
