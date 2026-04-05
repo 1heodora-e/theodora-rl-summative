@@ -8,8 +8,6 @@
 
 **Train a distribution agent to allocate limited sanitary pads across twelve Kigali-area schools—balancing need, vulnerability, distance, and depot stock.**
 
-[![Video Demo](https://img.shields.io/badge/Video-Demo-red?logo=youtube)](https://www.youtube.com/watch?v=PLACEHOLDER) · [![Kaggle Notebook](https://img.shields.io/badge/Kaggle-Notebook-20BEFF?logo=kaggle)](https://www.kaggle.com/code/PLACEHOLDER)
-
 <p align="center">
   <img src="docs/images/viz-dashboard.png" alt="Swift Haven 3D distribution dashboard — Kigali districts, depot, schools, live HUD and rewards" width="920"/>
   <br />
