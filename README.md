@@ -38,7 +38,7 @@ A **custom Gymnasium** environment, **`KigaliPadDistributionEnv`**, simulates **
 - Trade off **travel distance** against impact  
 - Complete **high-vulnerability coverage** when possible  
 
-📺 **Video walkthrough:** [Video Demo](https://www.youtube.com/watch?v=PLACEHOLDER) *(replace with your published link)*
+📺 **Video walkthrough:** [Video Demo](https://www.youtube.com/watch?v=yVM8EIWCBE4) 
 
 ---
 
